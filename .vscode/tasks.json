@@ -1,0 +1,142 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build Debug APK",
+			"type": "shell",
+			"command": "gradlew.bat assembleDebug --console=plain",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [
+				"$gradle"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build Debug APK (absolute path)",
+			"type": "shell",
+			"command": "& 'D:/JAVA/NRG64BIT/gradlew.bat' assembleDebug --console=plain",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [
+				"$gradle"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Count SkinMapping sizes",
+			"type": "shell",
+			"command": "& 'C:/Users/BearOwner/AppData/Local/Programs/Python/Python314/python.exe' -c \"import re, pathlib; src=pathlib.Path('D:/JAVA/NRG64BIT/app/src/main/jni/SkinMapping.cpp').read_text(); pattern=re.compile(r'^int\\\\s+([A-Za-z0-9_]+)\\\\[\\\\]\\\\s*=\\\\s*\\\\{(.*)\\\\};?$', re.M); [print(f'{m.group(1)}: {len([x for x in m.group(2).split(\\',\\') if x.strip()])}') for m in pattern.finditer(src)]\"",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Build Debug APK (after header sizing)",
+			"type": "shell",
+			"command": "& 'D:/JAVA/NRG64BIT/gradlew.bat' assembleDebug --console=plain",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [
+				"$gradle"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Build Debug APK (inventory sizes fixed)",
+			"type": "shell",
+			"command": "& 'D:/JAVA/NRG64BIT/gradlew.bat' assembleDebug --console=plain",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [
+				"$gradle"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Verify Build After M416 Fix",
+			"type": "shell",
+			"command": "& 'D:/JAVA/NRG64BIT/gradlew.bat' assembleDebug --console=plain",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Verify Build After M416 Hardening",
+			"type": "shell",
+			"command": "& 'D:/JAVA/NRG64BIT/gradlew.bat' assembleDebug --console=plain",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Verify Build After M416 Cleanup",
+			"type": "shell",
+			"command": "& 'D:/JAVA/NRG64BIT/gradlew.bat' assembleDebug --console=plain",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Verify Build After Flash Fix",
+			"type": "shell",
+			"command": "& 'D:/JAVA/NRG64BIT/gradlew.bat' assembleDebug --console=plain",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Verify Build After Lightgrip Fix",
+			"type": "shell",
+			"command": "& 'D:/JAVA/NRG64BIT/gradlew.bat' assembleDebug --console=plain",
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Verify assembleDebug",
+			"type": "shell",
+			"command": "gradlew.bat assembleDebug --console=plain",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [
+				"$gradle"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Verify assembleDebug",
+			"type": "shell",
+			"command": "./gradlew.bat assembleDebug --console=plain",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [
+				"$gradle"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Verify assembleDebug",
+			"type": "shell",
+			"command": "cd /d d:/JAVA/NRG64BIT && .\\gradlew.bat assembleDebug --console=plain",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [
+				"$gradle"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Verify assembleDebug",
+			"type": "shell",
+			"command": "Set-Location 'd:/JAVA/NRG64BIT'; .\\gradlew.bat assembleDebug --console=plain",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [
+				"$gradle"
+			],
+			"group": "build"
+		}
+	]
+}

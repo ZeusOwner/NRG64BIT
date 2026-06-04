@@ -1,0 +1,14 @@
+#include "buggy_skins.h"
+
+namespace skin_tables {
+
+const std::array<int, BUGGY_VARIANT_COUNT> BuggySkins = {
+    1907001, 1907047, 1907009, 1907010, 1907011, 1907012, 1907013, 1907014,
+    1907015, 1907016, 1907017, 1907018, 1907019, 1907020, 1907021, 1907022,
+    1907023, 1907024, 1907025, 1907026, 1907027, 1907028, 1907029, 1907030,
+    1907031, 1907032, 1907033, 1907034, 1907035, 1907036, 1907037, 1907038,
+    1907039, 1907040};
+
+static_assert(BuggySkins.size() == BUGGY_VARIANT_COUNT, "BuggySkins size mismatch");
+
+}  // namespace skin_tables

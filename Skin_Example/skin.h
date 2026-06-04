@@ -1,0 +1,57 @@
+//
+// Created by Administrator on 3/4/2024.
+//
+//https://t.me/MG_3N
+#ifndef NTH_SKIN_H
+#define NTH_SKIN_H
+#define ID_AKM 101001
+#define ID_M16A4 101002
+#define ID_SCARL 101003
+#define ID_M416 101004
+#define ID_GROZA 101005
+#define ID_AUG 101006
+#define ID_QBZ 101007
+#define ID_M762 101008
+#define ID_MK47 101009
+#define ID_G36C 101010
+#define ID_ACVAL 101011
+#define ID_HONEY_BADGER 101012
+#define ID_FAMAS 101100
+#define ID_ASM 101101
+#define ID_ACE32 101102
+#define ID_UZI 102001
+#define ID_UMP45 102002
+#define ID_VECTOR 102003
+#define ID_THOMPSON 102004
+#define ID_PP19 102005
+#define ID_MP5K 102007
+#define ID_P90 102105
+#define ID_KAR98K 103001
+#define ID_M24 103002
+#define ID_AWM 103003
+#define ID_SKS 103004
+#define ID_VSS 103005
+#define ID_MINI14 103006
+#define ID_MK14 103007
+#define ID_WIN94 103008
+#define ID_SLR 103009
+#define ID_QBU 103010
+#define ID_MOSIN_NAGANT 103011
+#define ID_AMR 103012
+#define ID_MK12 103100
+#define ID_S686 104001
+#define ID_S1897 104002
+#define ID_S12K 104003
+#define ID_DBS 104004
+#define ID_SPAS12 104100
+#define ID_M1014 104101
+#define ID_NS2000 104102
+#define ID_M249 105001
+#define ID_DP28 105002
+#define ID_PAN 108004
+#define ID_MG3 105010
+#define ID_P90 102105
+#define ID_KNIFE 108001
+#define ID_KNIFE1 108005
+
+#endif //NTH_SKIN_H

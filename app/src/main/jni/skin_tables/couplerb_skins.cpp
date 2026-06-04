@@ -1,0 +1,13 @@
+#include "couplerb_skins.h"
+
+namespace skin_tables {
+
+const std::array<int, COUPLERB_VARIANT_COUNT> CoupleRBSkins = {
+    1961001, 1961021, 1961024, 1961025, 1961029, 1961030, 1961031, 1961032,
+    1961033, 1961034, 1961035, 1961051, 1961052, 1961053, 1961054, 1961055,
+    1961056, 1961057, 1961136, 1961137, 1961138, 1961139, 1961140, 1961141,
+    1961142, 1961143, 1961150, 1961020, 19610251, 19611440, 19611370};
+
+static_assert(CoupleRBSkins.size() == COUPLERB_VARIANT_COUNT, "CoupleRBSkins size mismatch");
+
+}  // namespace skin_tables
