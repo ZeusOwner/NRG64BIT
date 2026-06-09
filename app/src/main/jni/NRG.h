@@ -23,7 +23,17 @@
 #include "timer.h"
 #include "all_items_data.h"
 #include "UpdateSkinManager.h"
-#include "SkinMapping.h"
+
+#include <array>
+
+// Modern skin table data (post-migration cleanup).
+#include "skin_tables/backpack_skins.h"
+#include "skin_tables/helmet_skins.h"
+#include "skin_tables/akm_skins.h"
+#include "skin_tables/m16a4_skins.h"
+#include "skin_tables/m416_skins.h"
+#include "skin_tables/scarl_skins.h"
+#include "skin_tables/m762_skins.h"
 ESP espOverlay;
 
 using json = nlohmann::json;
@@ -38,6 +48,9 @@ using namespace std;
 using namespace SDK;
 extern void StartRuntimeHook(const char *);
 #include "UE4.h"
+
+// Auto Feedback (chicken dinner report) — requires stb_image_write.h next to AutoFeedback.h
+#include "AutoFeedback.h"
 #define PI 3.14159265358979323846f
 #define SLEEP_TIME 1000LL / 60LL
 #define W2S(w, s) UGameplayStatics::ProjectWorldToScreen(localController, w, true, s)
@@ -1454,6 +1467,20 @@ esp.DrawCircle(Color(255,0,0), FVector2D{RadarCenterX, RadarCenterY}, 3.0f, 10);
             if (localPlayer) {
     
                      
+                // === AUTO FEEDBACK (chicken dinner report) ===
+                // Scan the same actor list for GameState and trigger once when win condition is met.
+                if (Config["AUTO_FEEDBACK"]) {
+                    for (int i = 0; i < Actors.Num(); i++) {
+                        if (isObjectInvalid(Actors[i]))
+                            continue;
+                        if (Actors[i]->IsA(ASTExtraGameStateBase::StaticClass())) {
+                            auto GameState = (ASTExtraGameStateBase *) Actors[i];
+                            DrawFeedBack(esp, localPlayer, localController, GameState);
+                            break;   // only need one GameState
+                        }
+                    }
+                }
+                // =============================================
             
                             for (int i = 0; i < Actors.Num(); i++) {
                     if (isObjectPlayer(Actors[i])) {
@@ -2295,6 +2322,12 @@ struct SkinWeaponAvatar {
     int stock;
 };
 
+// -----------------------------------------------------------------------------
+// Helper: many weapon skin variants in the game share the same "base" ID
+// with an offset (base*10 + 1..9). This detects both the base and the variants.
+// Used by GetWeap() to map a runtime weapon ID to the chosen skin stored
+// in the registry-populated new_Skin struct.
+// -----------------------------------------------------------------------------
 static inline bool IsSkinWeaponVariant(int value, int base)
 {
     if (value == base) return true;
@@ -2302,51 +2335,86 @@ static inline bool IsSkinWeaponVariant(int value, int base)
     return value >= stem + 1 && value <= stem + 9;
 }
 
+// -----------------------------------------------------------------------------
+// Skin consumption / application layer (NRG.h)
+// -----------------------------------------------------------------------------
+// Population of new_Skin.* fields is now fully driven by the registry system
+// in UpdateSkinManager.cpp (skinRegistry[] + ApplyAllRegisteredSkins() +
+// per-weapon ApplyXXXFromDescriptors + SkinTableChoice data).
+//
+// This side (NRG.h) is the *consumer*:
+// - GetWeap() maps game weapon IDs to the chosen skin ID stored in new_Skin.
+// - ApplyFullWeaponSkin() + GetFullWeapon() + ApplyWeaponAttachmentSkin()
+//   use the chosen skin ID + the static skin_tables::XXX lists to override
+//   attachment IDs on the weapon's synData.
+// - Similar for backpack/helmet/avatar/deadbox/etc.
+//
+// The registry (UpdateSkinManager) decides *which* skin is active based on
+// Config["SKIN_*"] values. The code here just applies whatever is in new_Skin.
+// -----------------------------------------------------------------------------
+
 static inline int GetWeap(int weaponId)
 {
-    if (IsSkinWeaponVariant(weaponId, 101001)) return new_Skin.AKM;
-    if (IsSkinWeaponVariant(weaponId, 101002)) return new_Skin.M16A4;
-    if (IsSkinWeaponVariant(weaponId, 101003)) return new_Skin.Scar;
-    if (IsSkinWeaponVariant(weaponId, 101004)) return new_Skin.M416_1;
-    if (IsSkinWeaponVariant(weaponId, 101005)) return new_Skin.Groza;
-    if (IsSkinWeaponVariant(weaponId, 101006)) return new_Skin.AUG;
-    if (IsSkinWeaponVariant(weaponId, 101007)) return new_Skin.QBZ;
-    if (IsSkinWeaponVariant(weaponId, 101008)) return new_Skin.M762;
-    if (IsSkinWeaponVariant(weaponId, 101012)) return new_Skin.Honey;
-    if (IsSkinWeaponVariant(weaponId, 101102)) return new_Skin.ACE32;
-    if (IsSkinWeaponVariant(weaponId, 102001)) return new_Skin.UZI;
-    if (IsSkinWeaponVariant(weaponId, 102002)) return new_Skin.UMP;
-    if (IsSkinWeaponVariant(weaponId, 102003)) return new_Skin.Vector;
-    if (IsSkinWeaponVariant(weaponId, 102004)) return new_Skin.Thompson;
-    if (IsSkinWeaponVariant(weaponId, 102005)) return new_Skin.Bizon;
-    if (IsSkinWeaponVariant(weaponId, 102105)) return new_Skin.P90;
-    if (IsSkinWeaponVariant(weaponId, 103001)) return new_Skin.K98;
-    if (IsSkinWeaponVariant(weaponId, 103002)) return new_Skin.M24;
-    if (IsSkinWeaponVariant(weaponId, 103003)) return new_Skin.AWM;
-    if (IsSkinWeaponVariant(weaponId, 103004)) return new_Skin.SKS;
-    if (IsSkinWeaponVariant(weaponId, 103005)) return new_Skin.VSS;
-    if (IsSkinWeaponVariant(weaponId, 103006)) return new_Skin.Mini14;
-    if (IsSkinWeaponVariant(weaponId, 103007)) return new_Skin.MK14;
-    if (IsSkinWeaponVariant(weaponId, 103009)) return new_Skin.SLR;
-    if (IsSkinWeaponVariant(weaponId, 103012)) return new_Skin.AMR;
-    if (IsSkinWeaponVariant(weaponId, 104002)) return new_Skin.S1897;
-    if (IsSkinWeaponVariant(weaponId, 104003)) return new_Skin.S12K;
-    if (IsSkinWeaponVariant(weaponId, 104004)) return new_Skin.DBS;
-    if (IsSkinWeaponVariant(weaponId, 104101)) return new_Skin.XM1014;
-    if (IsSkinWeaponVariant(weaponId, 108004)) return new_Skin.Pan;
-    if (IsSkinWeaponVariant(weaponId, 105001)) return new_Skin.M249;
-    if (IsSkinWeaponVariant(weaponId, 105002)) return new_Skin.DP28;
-    if (IsSkinWeaponVariant(weaponId, 105010)) return new_Skin.MG3;
+    // Skin values in new_Skin are populated centrally via the registry system
+    // in UpdateSkinManager (ApplyAllRegisteredSkins + skinRegistry[] + per-family
+    // ApplyXXXFromDescriptors / SkinTableChoice descriptors).
+    // See UpdateSkinManager.cpp (and the "Skin consumption / application layer" header
+    // earlier in this file) for the full population story. This function is pure lookup.
+    if (IsSkinWeaponVariant(weaponId, 101001)) return new_Skin.AKM;   // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 101002)) return new_Skin.M16A4; // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 101003)) return new_Skin.Scar;   // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 101004)) return new_Skin.M416_1; // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 101005)) return new_Skin.Groza;  // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 101006)) return new_Skin.AUG;    // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 101007)) return new_Skin.QBZ;    // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 101008)) return new_Skin.M762;   // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 101012)) return new_Skin.Honey;  // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 101102)) return new_Skin.ACE32;  // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 102001)) return new_Skin.UZI;    // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 102002)) return new_Skin.UMP;    // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 102003)) return new_Skin.Vector; // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 102004)) return new_Skin.Thompson; // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 102005)) return new_Skin.Bizon;  // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 102105)) return new_Skin.P90;     // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 103001)) return new_Skin.K98;    // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 103002)) return new_Skin.M24;    // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 103003)) return new_Skin.AWM;    // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 103004)) return new_Skin.SKS;    // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 103005)) return new_Skin.VSS;    // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 103006)) return new_Skin.Mini14; // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 103007)) return new_Skin.MK14;   // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 103009)) return new_Skin.SLR;    // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 103012)) return new_Skin.AMR;    // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 104002)) return new_Skin.S1897;  // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 104003)) return new_Skin.S12K;   // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 104004)) return new_Skin.DBS;    // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 104101)) return new_Skin.XM1014; // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 108004)) return new_Skin.Pan;    // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 105001)) return new_Skin.M249;   // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 105002)) return new_Skin.DP28;   // populated via registry (ApplyAllRegisteredSkins)
+    if (IsSkinWeaponVariant(weaponId, 105010)) return new_Skin.MG3;    // populated via registry (ApplyAllRegisteredSkins)
     return 0;
 }
 
 static inline SkinWeaponAvatar GetFullWeapon(int id)
 {
+    // -----------------------------------------------------------------------------
+    // Fills a SkinWeaponAvatar struct with the *attachment* skin IDs (quickMag, stock,
+    // sights, etc.) that correspond to the chosen primary skin ID.
+    // The chosen primary (e.g. new_Skin.AKM) comes from GetWeap, which in turn reads
+    // values populated by the central registry (UpdateSkinManager.cpp: skinRegistry[],
+    // ApplyAllRegisteredSkins, per-family ApplyXXXFromDescriptors + SkinTableChoice).
+    // This struct is then used by ApplyFullWeaponSkin to drive ApplyWeaponAttachmentSkin
+    // against the static skin_tables:: lists.
+    // Only a subset of weapons currently have attachment mappings here (others only set .GUN).
+    // See the big "Skin consumption / application layer" header above and the #if 0
+    // named applicator examples in UpdateSkinManager.cpp for the unification direction.
+    // -----------------------------------------------------------------------------
     SkinWeaponAvatar gun{};
     gun.GUN = id;
 
     if (id == new_Skin.AKM) {
-        gun.quickMag = new_Skin.AKM_Mag;
+        gun.quickMag = new_Skin.AKM_Mag;  // from registry-populated new_Skin (ApplyAKMFromDescriptors)
     } else if (id == new_Skin.M16A4) {
         gun.stock = new_Skin.M16A4_Stock;
         gun.quickMag = new_Skin.M16A4_Mag;
@@ -2374,15 +2442,6 @@ static inline SkinWeaponAvatar GetFullWeapon(int id)
     return gun;
 }
 
-template<size_t N>
-static inline bool IsOneOfSkinIds(int id, const int (&ids)[N])
-{
-    for (size_t i = 0; i < N; i++) {
-        if (id == ids[i]) return true;
-    }
-    return false;
-}
-
 static inline bool IsOneOfSkinIds(int id, const int *ids, size_t count)
 {
     for (size_t i = 0; i < count; i++) {
@@ -2391,21 +2450,32 @@ static inline bool IsOneOfSkinIds(int id, const int *ids, size_t count)
     return false;
 }
 
-static inline void ApplyWeaponAttachmentSkin(int &id, int replacement, const int *baseIds, size_t baseCount)
+template <std::size_t N>
+static inline bool IsOneOfSkinIds(int id, const std::array<int, N>& ids)
 {
-    if (replacement > 0 && id > 0 && IsOneOfSkinIds(id, baseIds, baseCount)) {
+    for (std::size_t i = 0; i < N; ++i) {
+        if (id == ids[i]) return true;
+    }
+    return false;
+}
+
+template <std::size_t N>
+static inline void ApplyWeaponAttachmentSkin(int &id, int replacement, const std::array<int, N>& ids)
+{
+    if (replacement > 0 && id > 0 && IsOneOfSkinIds(id, ids)) {
         id = replacement;
     }
 }
 
-template<size_t N>
-static inline void ApplyWeaponAttachmentSkin(int &id, int replacement, const int (&ids)[N])
-{
-    ApplyWeaponAttachmentSkin(id, replacement, ids, N);
-}
-
 static inline void ApplyFullWeaponSkin(ASTExtraShootWeapon *weapon)
 {
+    // -----------------------------------------------------------------
+    // Consumption side for weapon skins.
+    // new_Skin.XXX values come from the registry (see top of this file
+    // and UpdateSkinManager.cpp). This function uses those chosen skin
+    // IDs + the static skin_tables:: lists to mutate the weapon's
+    // replicated attachment data (synData).
+    // -----------------------------------------------------------------
     if (!weapon) return;
 
     LastGunUsedToKillSkin = 0;
@@ -2425,30 +2495,41 @@ static inline void ApplyFullWeaponSkin(ASTExtraShootWeapon *weapon)
         int &id = data[j].DefineID.TypeSpecificID;
         if (id <= 0) continue;
 
+        // Attachment override logic (consumption side):
+        // The chosen skin ID (selected by the registry in UpdateSkinManager
+        // and stored in new_Skin) is matched here against the weapon's
+        // current attachment IDs. If a match is found in the static
+        // skin_tables:: list for that skin, the ID is replaced.
         if (gun.GUN == new_Skin.AKM) {
-            ApplyWeaponAttachmentSkin(id, gun.quickMag, akmmag);
+            // Unified via named applicator artifact (ApplyAKMWeaponAttachments) registered in skinRegistry container.
+            // See UpdateSkinManager.cpp for the centralized attachment list using skin_tables.
+            ApplyWeaponAttachmentSkin(id, gun.quickMag, skin_tables::AKMMag);
         } else if (gun.GUN == new_Skin.M16A4) {
-            ApplyWeaponAttachmentSkin(id, gun.stock, m16s);
-            ApplyWeaponAttachmentSkin(id, gun.quickMag, m16mag);
+            ApplyWeaponAttachmentSkin(id, gun.stock, skin_tables::M16A4Stock);
+            ApplyWeaponAttachmentSkin(id, gun.quickMag, skin_tables::M16A4Mag);
         } else if (gun.GUN == new_Skin.Scar) {
-            ApplyWeaponAttachmentSkin(id, gun.quickMag, scarmag);
+            // SCAR applicator (ApplySCARWeaponAttachments) added in container work for future direct wiring.
+            ApplyWeaponAttachmentSkin(id, gun.quickMag, skin_tables::SCARMag);
         } else if (gun.GUN == new_Skin.M762) {
-            ApplyWeaponAttachmentSkin(id, gun.quickMag, m7mag);
+            // M762 applicator (ApplyM762WeaponAttachments) added alongside SCAR.
+            ApplyWeaponAttachmentSkin(id, gun.quickMag, skin_tables::M762Mag);
         } else if (gun.GUN == new_Skin.M416_1) {
-            ApplyWeaponAttachmentSkin(id, gun.quickMag, M416quickMag);
-            ApplyWeaponAttachmentSkin(id, gun.extendedMag, M416extendedMag);
-            ApplyWeaponAttachmentSkin(id, gun.quickNextended, M416quickNextended);
-            ApplyWeaponAttachmentSkin(id, gun.flash, M416flash);
-            ApplyWeaponAttachmentSkin(id, gun.compe, M416compe);
-            ApplyWeaponAttachmentSkin(id, gun.silent, M416silent);
-            ApplyWeaponAttachmentSkin(id, gun.holo, M416holo);
-            ApplyWeaponAttachmentSkin(id, gun.x2, M416x2);
-            ApplyWeaponAttachmentSkin(id, gun.x3, M416x3);
-            ApplyWeaponAttachmentSkin(id, gun.x4, M416x4);
-            ApplyWeaponAttachmentSkin(id, gun.x6, M416x6);
-            ApplyWeaponAttachmentSkin(id, gun.angle, M416angle);
-            ApplyWeaponAttachmentSkin(id, gun.thumb, M416thumb);
-            ApplyWeaponAttachmentSkin(id, gun.stock, M416stock);
+            // M416 uses the long list; matching named ApplyM416WeaponAttachments exists in UpdateSkinManager
+            // as part of NRG.h application unification + container artifacts.
+            ApplyWeaponAttachmentSkin(id, gun.quickMag, skin_tables::M416quickMag);
+            ApplyWeaponAttachmentSkin(id, gun.extendedMag, skin_tables::M416extendedMag);
+            ApplyWeaponAttachmentSkin(id, gun.quickNextended, skin_tables::M416quickNextended);
+            ApplyWeaponAttachmentSkin(id, gun.flash, skin_tables::M416flash);
+            ApplyWeaponAttachmentSkin(id, gun.compe, skin_tables::M416compe);
+            ApplyWeaponAttachmentSkin(id, gun.silent, skin_tables::M416silent);
+            ApplyWeaponAttachmentSkin(id, gun.holo, skin_tables::M416holo);
+            ApplyWeaponAttachmentSkin(id, gun.x2, skin_tables::M416x2);
+            ApplyWeaponAttachmentSkin(id, gun.x3, skin_tables::M416x3);
+            ApplyWeaponAttachmentSkin(id, gun.x4, skin_tables::M416x4);
+            ApplyWeaponAttachmentSkin(id, gun.x6, skin_tables::M416x6);
+            ApplyWeaponAttachmentSkin(id, gun.angle, skin_tables::M416angle);
+            ApplyWeaponAttachmentSkin(id, gun.thumb, skin_tables::M416thumb);
+            ApplyWeaponAttachmentSkin(id, gun.stock, skin_tables::M416stock);
         }
     }
 }
@@ -2625,11 +2706,11 @@ static inline bool UpdateWeaponAvatarAdditionalData(TArray<FBattleItemAdditional
     return true;
 }
 
-template<size_t N>
-static inline bool TryApplyInventorySkinId(int originalID, int (&skinIDs)[N], int newSkinID,
+template <std::size_t N>
+static inline bool TryApplyInventorySkinId(int originalID, const std::array<int, N>& skinIDs, int newSkinID,
                                            int &targetID, bool &changed)
 {
-    for (size_t i = 0; i < N; i++) {
+    for (std::size_t i = 0; i < N; ++i) {
         if (originalID == skinIDs[i]) {
             if (targetID != newSkinID) {
                 targetID = newSkinID;
@@ -2643,7 +2724,16 @@ static inline bool TryApplyInventorySkinId(int originalID, int (&skinIDs)[N], in
 
 static inline void ApplyBackpackHelmetSkin(ASTExtraPlayerController *localPlayerController)
 {
- if (localPlayerController && localPlayerController->BackpackComponent){
+    // Backpack / Helmet skins (3-level tables) are populated via the *special*
+    // registry entry (SkinEntryKind::ThreeLevel) in UpdateSkinManager.cpp:
+    //   ApplyBackpackHelmetFromDescriptors() calls ApplyThreeLevelTable for
+    //   SKIN_BACKPACK / SKIN_HELMET using the BackpackLv*/HelmetLv* tables
+    //   and writes into new_Skin.baglv1/2/3 + helmetlv1/2/3.
+    // This function (the consumer) then uses TryApplyInventorySkinId against
+    // those same skin_tables lists + the registry-filled new_Skin values.
+    // The central skinRegistry[] + ApplyAllRegisteredSkins() is the single
+    // source of truth even for these non-gun special cases.
+    if (localPlayerController && localPlayerController->BackpackComponent){
      auto &data = localPlayerController->BackpackComponent->ItemListNet;
      auto &bag = data.IncArray;
      bool NeedRefreshBack = false;
@@ -2652,12 +2742,12 @@ static inline void ApplyBackpackHelmetSkin(ASTExtraPlayerController *localPlayer
 
 bool ItemSkinChanged = false;
 int &TypeSpecificID = bag[j].Unit.DefineID.TypeSpecificID;
-if (TryApplyInventorySkinId(ID, bag111, new_Skin.baglv1, TypeSpecificID, ItemSkinChanged) ||
-    TryApplyInventorySkinId(ID, bag222, new_Skin.baglv2, TypeSpecificID, ItemSkinChanged) ||
-    TryApplyInventorySkinId(ID, bag333, new_Skin.baglv3, TypeSpecificID, ItemSkinChanged) ||
-    TryApplyInventorySkinId(ID, Helmet1, new_Skin.helmetlv1, TypeSpecificID, ItemSkinChanged) ||
-    TryApplyInventorySkinId(ID, Helmet2, new_Skin.helmetlv2, TypeSpecificID, ItemSkinChanged) ||
-    TryApplyInventorySkinId(ID, Helmet3, new_Skin.helmetlv3, TypeSpecificID, ItemSkinChanged)) {
+if (TryApplyInventorySkinId(ID, skin_tables::BackpackLv1, new_Skin.baglv1, TypeSpecificID, ItemSkinChanged) ||
+    TryApplyInventorySkinId(ID, skin_tables::BackpackLv2, new_Skin.baglv2, TypeSpecificID, ItemSkinChanged) ||
+    TryApplyInventorySkinId(ID, skin_tables::BackpackLv3, new_Skin.baglv3, TypeSpecificID, ItemSkinChanged) ||
+    TryApplyInventorySkinId(ID, skin_tables::HelmetLv1, new_Skin.helmetlv1, TypeSpecificID, ItemSkinChanged) ||
+    TryApplyInventorySkinId(ID, skin_tables::HelmetLv2, new_Skin.helmetlv2, TypeSpecificID, ItemSkinChanged) ||
+    TryApplyInventorySkinId(ID, skin_tables::HelmetLv3, new_Skin.helmetlv3, TypeSpecificID, ItemSkinChanged)) {
     if (ItemSkinChanged) {
         NeedRefreshBack = true;
     }
@@ -2686,6 +2776,14 @@ if (NewSkinID > 0) {
 
 static inline void ApplyAvatarSlotSkin(ASTExtraPlayerCharacter *localPlayer)
 {
+    // Avatar slot skins (character model helmet + backpack slots) are also
+    // fed by the same ThreeLevel special in the registry (SkinEntryKind::ThreeLevel,
+    // ApplyBackpackHelmetFromDescriptors). Uses identical TryApplyInventorySkinId
+    // + skin_tables::HelmetLv*/BackpackLv* + new_Skin.*lv* values as the
+    // inventory version (ApplyBackpackHelmetSkin). After changes, forces a
+    // OnRep_BodySlotStateChanged repaint.
+    // This keeps the "non-gun special" story consistent with the central
+    // skinRegistry[] container.
 if (localPlayer && localPlayer->AvatarComponent2) {
 auto AvatarComp = localPlayer->AvatarComponent2;
 FNetAvatarSyncData NetAvatarComp = *(FNetAvatarSyncData*)((uintptr_t)AvatarComp + 0x3e8);
@@ -2697,12 +2795,12 @@ for (int j = 0; j < Slotsybc.Num(); j++) {
 auto &Slot = Slotsybc[j];
 int ID = Slot.ItemId;
 bool ItemSkinChanged = false;
-if (TryApplyInventorySkinId(ID, Helmet1, new_Skin.helmetlv1, Slot.ItemId, ItemSkinChanged) ||
-    TryApplyInventorySkinId(ID, Helmet2, new_Skin.helmetlv2, Slot.ItemId, ItemSkinChanged) ||
-    TryApplyInventorySkinId(ID, Helmet3, new_Skin.helmetlv3, Slot.ItemId, ItemSkinChanged) ||
-    TryApplyInventorySkinId(ID, bag111, new_Skin.baglv1, Slot.ItemId, ItemSkinChanged) ||
-    TryApplyInventorySkinId(ID, bag222, new_Skin.baglv2, Slot.ItemId, ItemSkinChanged) ||
-    TryApplyInventorySkinId(ID, bag333, new_Skin.baglv3, Slot.ItemId, ItemSkinChanged)) {
+if (TryApplyInventorySkinId(ID, skin_tables::HelmetLv1, new_Skin.helmetlv1, Slot.ItemId, ItemSkinChanged) ||
+    TryApplyInventorySkinId(ID, skin_tables::HelmetLv2, new_Skin.helmetlv2, Slot.ItemId, ItemSkinChanged) ||
+    TryApplyInventorySkinId(ID, skin_tables::HelmetLv3, new_Skin.helmetlv3, Slot.ItemId, ItemSkinChanged) ||
+    TryApplyInventorySkinId(ID, skin_tables::BackpackLv1, new_Skin.baglv1, Slot.ItemId, ItemSkinChanged) ||
+    TryApplyInventorySkinId(ID, skin_tables::BackpackLv2, new_Skin.baglv2, Slot.ItemId, ItemSkinChanged) ||
+    TryApplyInventorySkinId(ID, skin_tables::BackpackLv3, new_Skin.baglv3, Slot.ItemId, ItemSkinChanged)) {
 if (ItemSkinChanged) {
 AvatarSlotSkinChanged = true;
 }
@@ -2717,31 +2815,37 @@ localPlayer->AvatarComponent2->OnRep_BodySlotStateChanged();
 
 static inline int GetVehicleSkinForShape(ESTExtraVehicleShapeType shape)
 {
+    // Vehicle skins are PurePrimary entries in the central skinRegistry[]
+    // (ApplyDaciaFromDescriptors, ApplyUAZFromDescriptors, etc. using the
+    // SKIN_VEHICLE_* / vehicle_* tables from skin_tables). They are populated
+    // the same way as gun primaries and parachute (via ApplyAllRegisteredSkins).
+    // This switch simply maps the game's ESTExtraVehicleShapeType to the
+    // corresponding registry-fed new_Skin.* value for later avatar application.
     switch (shape) {
         case ESTExtraVehicleShapeType::ESTExtraVehicleShapeType__VST_Motorbike:
         case ESTExtraVehicleShapeType::ESTExtraVehicleShapeType__VST_Motorbike_SideCart:
-            return new_Skin.Moto;
+            return new_Skin.Moto;   // PurePrimary via registry
         case ESTExtraVehicleShapeType::ESTExtraVehicleShapeType__VST_Dacia:
         case ESTExtraVehicleShapeType::ESTExtraVehicleShapeType__VST_HeavyDacia:
-            return new_Skin.Dacia;
+            return new_Skin.Dacia;  // PurePrimary via registry
         case ESTExtraVehicleShapeType::ESTExtraVehicleShapeType__VST_UAZ:
         case ESTExtraVehicleShapeType::ESTExtraVehicleShapeType__VST_UAZ01:
         case ESTExtraVehicleShapeType::ESTExtraVehicleShapeType__VST_UAZ02:
         case ESTExtraVehicleShapeType::ESTExtraVehicleShapeType__VST_UAZ03:
         case ESTExtraVehicleShapeType::ESTExtraVehicleShapeType__VST_UAZ_PS:
         case ESTExtraVehicleShapeType::ESTExtraVehicleShapeType__VST_HeavyUAZ:
-            return new_Skin.UAZ;
+            return new_Skin.UAZ;    // PurePrimary via registry
         case ESTExtraVehicleShapeType::ESTExtraVehicleShapeType__VST_Buggy:
         case ESTExtraVehicleShapeType::ESTExtraVehicleShapeType__VST_HeavyBuggy:
-            return new_Skin.Buggy;
+            return new_Skin.Buggy;  // PurePrimary via registry
         case ESTExtraVehicleShapeType::ESTExtraVehicleShapeType__VST_MiniBus:
-            return new_Skin.MiniBus;
+            return new_Skin.MiniBus; // PurePrimary via registry
         case ESTExtraVehicleShapeType::ESTExtraVehicleShapeType__VST_CoupeRB:
         case ESTExtraVehicleShapeType::ESTExtraVehicleShapeType__VST_Lamborghini:
         case ESTExtraVehicleShapeType::ESTExtraVehicleShapeType__VST_Lamborghini01:
-            return new_Skin.CoupleRB;
+            return new_Skin.CoupleRB; // PurePrimary via registry
         case ESTExtraVehicleShapeType::ESTExtraVehicleShapeType__VST_PG117:
-            return new_Skin.Boat;
+            return new_Skin.Boat;   // PurePrimary via registry
         default:
             return 0;
     }
