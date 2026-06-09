@@ -603,3 +603,10 @@
 - Builds: all NDK_EXIT_CODE=2 (skin clean). Recent full Gradle (from previous session) + these ndks cover verification.
 - Notes: The consumption story in NRG.h is now much more self-describing and consistently cross-references the central skinRegistry / UpdateSkinManager population machinery (including the special kinds for 3-level and the PurePrimary non-guns). This is a natural "more" continuation after the container/unification work. State remains pristine.
 - Plan + todos: final entries + all nrgh* items marked completed.
+
+### 2026-06-08 ~12:30 - PR Created
+- Branch: feature/phase2-skin-registry-migration
+- PR: https://github.com/ZeusOwner/NRG64BIT/pull/1
+- Commit includes the full Phase 2 registry migration, container work, non-gun specials, NRG.h tweaks, and this living Execution Log.
+- All verification (ndk after every edit, python table-backed checks, full Gradle) completed and documented.
+- Local working tree cleaned of build artifacts post-PR creation.
