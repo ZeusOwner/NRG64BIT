@@ -1178,9 +1178,9 @@ public class Floating extends Service {
 
        mainLayoutParams = new WindowManager.LayoutParams(layoutWidth, layoutHeight, type, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS | WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS, PixelFormat.RGBA_8888); 
         
-        mainLayoutParams.x = 0;
-        mainLayoutParams.y = 0;
-        mainLayoutParams.gravity = Gravity.CENTER | Gravity.CENTER;
+        mainLayoutParams.gravity = Gravity.TOP | Gravity.START;
+        mainLayoutParams.x = Math.max(0, (screenWidth - layoutWidth) / 2);
+        mainLayoutParams.y = Math.max(0, (screenHeight - layoutHeight) / 2);
         
         mainLayout = new LinearLayout(this);
         mainLayout.setOrientation(LinearLayout.VERTICAL);
