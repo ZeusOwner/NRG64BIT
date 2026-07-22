@@ -1,0 +1,261 @@
+// PUBG MOBILE (4.5.0 -- 64bit Beta) SDK Generate By @ByDwoz
+// Telegram Channel:- @XelahotOfficial
+// Generate on Wed Jul  8 13:37:47 2026
+ 
+#include "../SDK.hpp"
+
+namespace SDK
+{
+//---------------------❣︎➪ 𝗕𝗬𝗗𝗪𝗢𝗭 𝗗𝗘𝗩𝗘𝗟𝗢𝗣𝗘𝗥༆✈︎🇪🇬---------------------------
+//Functions
+//---------------------❣︎➪𝗕𝗬𝗗𝗪𝗢𝗭 𝗗𝗘𝗩𝗘𝗟𝗢𝗣𝗘𝗥༆✈︎🇪🇬---------------------------
+
+// Function PandoraPickerPlugin.BP_PandoraPickerLibraryLibrary.GetInstance
+// (Final, Native, Static, Public, BlueprintCallable)
+// Parameters:
+// class UBP_PandoraPickerLibraryLibrary* ReturnValue                    (Parm, OutParm, ZeroConstructor, ReturnParm, IsPlainOldData)
+
+class UBP_PandoraPickerLibraryLibrary* UBP_PandoraPickerLibraryLibrary::GetInstance()
+{
+	static UFunction *pFunc = 0;
+	if (!pFunc)
+		pFunc  = UObject::FindObject<UFunction>("Function PandoraPickerPlugin.BP_PandoraPickerLibraryLibrary.GetInstance");
+
+	UBP_PandoraPickerLibraryLibrary_GetInstance_Params params;
+
+	auto flags = pFunc->FunctionFlags;
+	pFunc->FunctionFlags |= 0x400;
+
+	static auto defaultObj = StaticClass()->GetDefaultObject();
+	defaultObj->ProcessEvent(pFunc, &params);
+
+	pFunc->FunctionFlags = flags;
+
+	return params.ReturnValue;
+}
+
+
+// Function PandoraPickerPlugin.BP_PandoraPickerLibraryLibrary.BP_SetVideoExportQuality
+// (Final, Native, Static, Public, BlueprintCallable)
+// Parameters:
+// int                            Quality                        (Parm, ZeroConstructor, IsPlainOldData)
+
+void UBP_PandoraPickerLibraryLibrary::BP_SetVideoExportQuality(int Quality)
+{
+	static UFunction *pFunc = 0;
+	if (!pFunc)
+		pFunc  = UObject::FindObject<UFunction>("Function PandoraPickerPlugin.BP_PandoraPickerLibraryLibrary.BP_SetVideoExportQuality");
+
+	UBP_PandoraPickerLibraryLibrary_BP_SetVideoExportQuality_Params params;
+	params.Quality = Quality;
+
+	auto flags = pFunc->FunctionFlags;
+	pFunc->FunctionFlags |= 0x400;
+
+	static auto defaultObj = StaticClass()->GetDefaultObject();
+	defaultObj->ProcessEvent(pFunc, &params);
+
+	pFunc->FunctionFlags = flags;
+}
+
+
+// Function PandoraPickerPlugin.BP_PandoraPickerLibraryLibrary.BP_PandoraPickerLoadImageTest
+// (Final, Native, Static, Public, HasOutParms, BlueprintCallable)
+// Parameters:
+// struct FString                 fImagePath                     (Parm, ZeroConstructor)
+// struct FString                 fOrgImagePath                  (Parm, ZeroConstructor)
+// class UTexture2D*              orgTex2D                       (Parm, OutParm, ZeroConstructor, IsPlainOldData)
+// class UTexture2D*              ReturnValue                    (Parm, OutParm, ZeroConstructor, ReturnParm, IsPlainOldData)
+
+class UTexture2D* UBP_PandoraPickerLibraryLibrary::BP_PandoraPickerLoadImageTest(const struct FString& fImagePath, const struct FString& fOrgImagePath, class UTexture2D** orgTex2D)
+{
+	static UFunction *pFunc = 0;
+	if (!pFunc)
+		pFunc  = UObject::FindObject<UFunction>("Function PandoraPickerPlugin.BP_PandoraPickerLibraryLibrary.BP_PandoraPickerLoadImageTest");
+
+	UBP_PandoraPickerLibraryLibrary_BP_PandoraPickerLoadImageTest_Params params;
+	params.fImagePath = fImagePath;
+	params.fOrgImagePath = fOrgImagePath;
+
+	auto flags = pFunc->FunctionFlags;
+	pFunc->FunctionFlags |= 0x400;
+
+	static auto defaultObj = StaticClass()->GetDefaultObject();
+	defaultObj->ProcessEvent(pFunc, &params);
+
+	pFunc->FunctionFlags = flags;
+
+	if (orgTex2D != nullptr)
+		*orgTex2D = params.orgTex2D;
+
+	return params.ReturnValue;
+}
+
+
+// Function PandoraPickerPlugin.BP_PandoraPickerLibraryLibrary.BP_PandoraPickerInit
+// (Final, Native, Static, Public, BlueprintCallable)
+// Parameters:
+// int                            ReturnValue                    (Parm, OutParm, ZeroConstructor, ReturnParm, IsPlainOldData)
+
+int UBP_PandoraPickerLibraryLibrary::BP_PandoraPickerInit()
+{
+	static UFunction *pFunc = 0;
+	if (!pFunc)
+		pFunc  = UObject::FindObject<UFunction>("Function PandoraPickerPlugin.BP_PandoraPickerLibraryLibrary.BP_PandoraPickerInit");
+
+	UBP_PandoraPickerLibraryLibrary_BP_PandoraPickerInit_Params params;
+
+	auto flags = pFunc->FunctionFlags;
+	pFunc->FunctionFlags |= 0x400;
+
+	static auto defaultObj = StaticClass()->GetDefaultObject();
+	defaultObj->ProcessEvent(pFunc, &params);
+
+	pFunc->FunctionFlags = flags;
+
+	return params.ReturnValue;
+}
+
+
+// Function PandoraPickerPlugin.BP_PandoraPickerLibraryLibrary.BP_PandoraPickerGetSavedPath
+// (Final, Native, Static, Public, HasOutParms, BlueprintCallable)
+// Parameters:
+// struct FString                 strSavePath                    (Parm, OutParm, ZeroConstructor)
+
+void UBP_PandoraPickerLibraryLibrary::BP_PandoraPickerGetSavedPath(struct FString* strSavePath)
+{
+	static UFunction *pFunc = 0;
+	if (!pFunc)
+		pFunc  = UObject::FindObject<UFunction>("Function PandoraPickerPlugin.BP_PandoraPickerLibraryLibrary.BP_PandoraPickerGetSavedPath");
+
+	UBP_PandoraPickerLibraryLibrary_BP_PandoraPickerGetSavedPath_Params params;
+
+	auto flags = pFunc->FunctionFlags;
+	pFunc->FunctionFlags |= 0x400;
+
+	static auto defaultObj = StaticClass()->GetDefaultObject();
+	defaultObj->ProcessEvent(pFunc, &params);
+
+	pFunc->FunctionFlags = flags;
+
+	if (strSavePath != nullptr)
+		*strSavePath = params.strSavePath;
+}
+
+
+// Function PandoraPickerPlugin.BP_PandoraPickerLibraryLibrary.BP_OpenImageLibraryWithOrg
+// (Final, Native, Static, Public, BlueprintCallable)
+// Parameters:
+// int                            Width                          (Parm, ZeroConstructor, IsPlainOldData)
+// int                            Height                         (Parm, ZeroConstructor, IsPlainOldData)
+// struct FString                 SecretKey                      (Parm, ZeroConstructor)
+// struct FString                 SavedPath                      (Parm, ZeroConstructor)
+
+void UBP_PandoraPickerLibraryLibrary::BP_OpenImageLibraryWithOrg(int Width, int Height, const struct FString& SecretKey, const struct FString& SavedPath)
+{
+	static UFunction *pFunc = 0;
+	if (!pFunc)
+		pFunc  = UObject::FindObject<UFunction>("Function PandoraPickerPlugin.BP_PandoraPickerLibraryLibrary.BP_OpenImageLibraryWithOrg");
+
+	UBP_PandoraPickerLibraryLibrary_BP_OpenImageLibraryWithOrg_Params params;
+	params.Width = Width;
+	params.Height = Height;
+	params.SecretKey = SecretKey;
+	params.SavedPath = SavedPath;
+
+	auto flags = pFunc->FunctionFlags;
+	pFunc->FunctionFlags |= 0x400;
+
+	static auto defaultObj = StaticClass()->GetDefaultObject();
+	defaultObj->ProcessEvent(pFunc, &params);
+
+	pFunc->FunctionFlags = flags;
+}
+
+
+// Function PandoraPickerPlugin.BP_PandoraPickerLibraryLibrary.BP_OpenImageLibraryVideo
+// (Final, Native, Static, Public, BlueprintCallable)
+// Parameters:
+// struct FString                 SecretKey                      (Parm, ZeroConstructor)
+
+void UBP_PandoraPickerLibraryLibrary::BP_OpenImageLibraryVideo(const struct FString& SecretKey)
+{
+	static UFunction *pFunc = 0;
+	if (!pFunc)
+		pFunc  = UObject::FindObject<UFunction>("Function PandoraPickerPlugin.BP_PandoraPickerLibraryLibrary.BP_OpenImageLibraryVideo");
+
+	UBP_PandoraPickerLibraryLibrary_BP_OpenImageLibraryVideo_Params params;
+	params.SecretKey = SecretKey;
+
+	auto flags = pFunc->FunctionFlags;
+	pFunc->FunctionFlags |= 0x400;
+
+	static auto defaultObj = StaticClass()->GetDefaultObject();
+	defaultObj->ProcessEvent(pFunc, &params);
+
+	pFunc->FunctionFlags = flags;
+}
+
+
+// Function PandoraPickerPlugin.BP_PandoraPickerLibraryLibrary.BP_OpenImageLibraryNoCut
+// (Final, Native, Static, Public, BlueprintCallable)
+// Parameters:
+// int                            Width                          (Parm, ZeroConstructor, IsPlainOldData)
+// int                            Height                         (Parm, ZeroConstructor, IsPlainOldData)
+// struct FString                 SecretKey                      (Parm, ZeroConstructor)
+// struct FString                 SavedPath                      (Parm, ZeroConstructor)
+
+void UBP_PandoraPickerLibraryLibrary::BP_OpenImageLibraryNoCut(int Width, int Height, const struct FString& SecretKey, const struct FString& SavedPath)
+{
+	static UFunction *pFunc = 0;
+	if (!pFunc)
+		pFunc  = UObject::FindObject<UFunction>("Function PandoraPickerPlugin.BP_PandoraPickerLibraryLibrary.BP_OpenImageLibraryNoCut");
+
+	UBP_PandoraPickerLibraryLibrary_BP_OpenImageLibraryNoCut_Params params;
+	params.Width = Width;
+	params.Height = Height;
+	params.SecretKey = SecretKey;
+	params.SavedPath = SavedPath;
+
+	auto flags = pFunc->FunctionFlags;
+	pFunc->FunctionFlags |= 0x400;
+
+	static auto defaultObj = StaticClass()->GetDefaultObject();
+	defaultObj->ProcessEvent(pFunc, &params);
+
+	pFunc->FunctionFlags = flags;
+}
+
+
+// Function PandoraPickerPlugin.BP_PandoraPickerLibraryLibrary.BP_OpenImageLibrary
+// (Final, Native, Static, Public, BlueprintCallable)
+// Parameters:
+// int                            Width                          (Parm, ZeroConstructor, IsPlainOldData)
+// int                            Height                         (Parm, ZeroConstructor, IsPlainOldData)
+// struct FString                 SecretKey                      (Parm, ZeroConstructor)
+// struct FString                 SavedPath                      (Parm, ZeroConstructor)
+
+void UBP_PandoraPickerLibraryLibrary::BP_OpenImageLibrary(int Width, int Height, const struct FString& SecretKey, const struct FString& SavedPath)
+{
+	static UFunction *pFunc = 0;
+	if (!pFunc)
+		pFunc  = UObject::FindObject<UFunction>("Function PandoraPickerPlugin.BP_PandoraPickerLibraryLibrary.BP_OpenImageLibrary");
+
+	UBP_PandoraPickerLibraryLibrary_BP_OpenImageLibrary_Params params;
+	params.Width = Width;
+	params.Height = Height;
+	params.SecretKey = SecretKey;
+	params.SavedPath = SavedPath;
+
+	auto flags = pFunc->FunctionFlags;
+	pFunc->FunctionFlags |= 0x400;
+
+	static auto defaultObj = StaticClass()->GetDefaultObject();
+	defaultObj->ProcessEvent(pFunc, &params);
+
+	pFunc->FunctionFlags = flags;
+}
+
+
+}
+

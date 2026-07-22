@@ -1,4 +1,4 @@
-﻿LOCAL_PATH := $(call my-dir)
+LOCAL_PATH := $(call my-dir)
 MAIN_LOCAL_PATH := $(call my-dir)
 
 include $(CLEAR_VARS)
@@ -25,10 +25,6 @@ LOCAL_CPPFLAGS := -Wno-error=format-security -fvisibility=hidden -ffunction-sect
 LOCAL_CPPFLAGS += -Wno-error=c++11-narrowing -fms-extensions -fno-rtti -fno-exceptions -fpermissive
 LOCAL_LDFLAGS += -Wl,--gc-sections,--strip-all, -llog
 LOCAL_ARM_MODE := arm
-
-LOCAL_C_INCLUDES += $(MAIN_LOCAL_PATH)
-
-
 
 
 LOCAL_C_INCLUDES += $(MAIN_LOCAL_PATH)
@@ -90,15 +86,15 @@ LOCAL_SRC_FILES := Main.cpp \
         Substrate/SubstrateHook.cpp \
         Substrate/SubstratePosixMemory.cpp \
         Substrate/And64InlineHook.cpp \
-        SDK/SDK_Basic.cpp\
-        SDK/SDK_Basic_functions.cpp\
-        SDK/SDK_CoreUObject_functions.cpp\
-        SDK/SDK_Engine_functions.cpp\
-        SDK/SDK_ShadowTrackerExtra_functions.cpp\
-        SDK/SDK_Client_functions.cpp\
+        SDK/PUBGM_Basic.cpp\
+        SDK/PUBGM_Basic_functions.cpp\
+        SDK/PUBGM_CoreUObject_functions.cpp\
+        SDK/PUBGM_Engine_functions.cpp\
+        SDK/PUBGM_ShadowTrackerExtra_functions.cpp\
+        SDK/PUBGM_Client_functions.cpp\
         
         
-  LOCAL_C_INCLUDES := $(LOCAL_PATH)/curl/curl-android-$(TARGET_ARCH_ABI)/include
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/curl/curl-android-$(TARGET_ARCH_ABI)/include
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/curl/openssl-android-$(TARGET_ARCH_ABI)/include
 
 
