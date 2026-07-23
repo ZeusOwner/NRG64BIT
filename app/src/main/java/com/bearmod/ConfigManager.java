@@ -1,13 +1,14 @@
 package com.bearmod;
 
-import android.content.Context;
 import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -23,7 +24,8 @@ public class ConfigManager {
     private ExecutorService ioExecutor;
     private ScheduledExecutorService scheduler;
     private ScheduledFuture<?> scheduledFlush;
-    private final Object flushLock = new Object();
+    private long flushGeneration;
+    private final Object lifecycleLock = new Object();
 
     private ConfigManager() {
         // private
@@ -34,13 +36,19 @@ public class ConfigManager {
     }
 
     public void initialize(@NonNull SharedPreferences prefs) {
-        this.prefs = prefs;
-        if (ioExecutor == null) ioExecutor = Executors.newSingleThreadExecutor();
-        if (scheduler == null) scheduler = Executors.newSingleThreadScheduledExecutor();
-        loadFromPrefs();
+        synchronized (lifecycleLock) {
+            this.prefs = prefs;
+            if (ioExecutor == null || ioExecutor.isShutdown()) {
+                ioExecutor = Executors.newSingleThreadExecutor();
+            }
+            if (scheduler == null || scheduler.isShutdown()) {
+                scheduler = Executors.newSingleThreadScheduledExecutor();
+            }
+            loadFromPrefsLocked();
+        }
     }
 
-    private void loadFromPrefs() {
+    private void loadFromPrefsLocked() {
         if (prefs == null) return;
         map.clear();
         Map<String, ?> all = prefs.getAll();
@@ -72,31 +80,57 @@ public class ConfigManager {
 
     public void put(final String key, final String value) {
         if (key == null) return;
-        if (value == null) {
-            map.remove(key);
-        } else {
-            map.put(key, value);
+        synchronized (lifecycleLock) {
+            if (value == null) {
+                map.remove(key);
+            } else {
+                map.put(key, value);
+            }
+            scheduleFlush();
         }
-        scheduleFlush();
     }
 
     private void scheduleFlush() {
-        synchronized (flushLock) {
-            if (scheduledFlush != null) scheduledFlush.cancel(false);
-            scheduledFlush = scheduler.schedule(this::flushToPrefs, 500, TimeUnit.MILLISECONDS);
+        synchronized (lifecycleLock) {
+            if (prefs == null || scheduler == null || scheduler.isShutdown()) {
+                return;
+            }
+            if (scheduledFlush != null) {
+                scheduledFlush.cancel(false);
+            }
+            try {
+                final long generation = ++flushGeneration;
+                scheduledFlush = scheduler.schedule(
+                        () -> flushToPrefs(generation),
+                        500,
+                        TimeUnit.MILLISECONDS
+                );
+            } catch (RejectedExecutionException ignored) {
+                scheduledFlush = null;
+            }
         }
     }
 
-    private void flushToPrefs() {
-        if (prefs == null) return;
-        final Map<String, String> snapshot = new ConcurrentHashMap<>(map);
-        ioExecutor.execute(() -> {
-            SharedPreferences.Editor e = prefs.edit();
-            for (Map.Entry<String, String> ent : snapshot.entrySet()) {
-                e.putString(ent.getKey(), ent.getValue());
+    private void flushToPrefs(long generation) {
+        final SharedPreferences targetPrefs;
+        final ExecutorService targetExecutor;
+        final Map<String, String> snapshot;
+        synchronized (lifecycleLock) {
+            if (generation != flushGeneration) {
+                return;
             }
-            e.apply();
-        });
+            scheduledFlush = null;
+            if (prefs == null || ioExecutor == null || ioExecutor.isShutdown()) {
+                return;
+            }
+            targetPrefs = prefs;
+            targetExecutor = ioExecutor;
+            snapshot = new HashMap<>(map);
+        }
+        try {
+            targetExecutor.execute(() -> persist(targetPrefs, snapshot, false));
+        } catch (RejectedExecutionException ignored) {
+        }
     }
 
     public Map<String, String> getMap() {
@@ -104,28 +138,57 @@ public class ConfigManager {
     }
 
     public void shutdown() {
-        synchronized (flushLock) {
+        final SharedPreferences targetPrefs;
+        final Map<String, String> snapshot;
+        final ExecutorService targetExecutor;
+        final ScheduledExecutorService targetScheduler;
+        synchronized (lifecycleLock) {
             if (scheduledFlush != null) {
                 scheduledFlush.cancel(false);
                 scheduledFlush = null;
             }
-        }
-        if (prefs != null) {
-            Map<String, String> snapshot = new ConcurrentHashMap<>(map);
-            SharedPreferences.Editor e = prefs.edit();
-            for (Map.Entry<String, String> ent : snapshot.entrySet()) {
-                e.putString(ent.getKey(), ent.getValue());
-            }
-            e.apply();
-        }
-        if (ioExecutor != null) {
-            ioExecutor.shutdownNow();
+            flushGeneration++;
+            targetPrefs = prefs;
+            snapshot = new HashMap<>(map);
+            targetExecutor = ioExecutor;
+            targetScheduler = scheduler;
+            prefs = null;
             ioExecutor = null;
-        }
-        if (scheduler != null) {
-            scheduler.shutdownNow();
             scheduler = null;
         }
-        prefs = null;
+
+        if (targetScheduler != null) {
+            targetScheduler.shutdownNow();
+        }
+        if (targetExecutor != null) {
+            targetExecutor.shutdown();
+            try {
+                if (!targetExecutor.awaitTermination(1, TimeUnit.SECONDS)) {
+                    targetExecutor.shutdownNow();
+                }
+            } catch (InterruptedException interrupted) {
+                targetExecutor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+        }
+        if (targetPrefs != null) {
+            persist(targetPrefs, snapshot, true);
+        }
+    }
+
+    private static void persist(
+            SharedPreferences targetPrefs,
+            Map<String, String> snapshot,
+            boolean synchronous
+    ) {
+        SharedPreferences.Editor editor = targetPrefs.edit();
+        for (Map.Entry<String, String> entry : snapshot.entrySet()) {
+            editor.putString(entry.getKey(), entry.getValue());
+        }
+        if (synchronous) {
+            editor.commit();
+        } else {
+            editor.apply();
+        }
     }
 }

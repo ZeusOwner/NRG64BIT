@@ -184,7 +184,7 @@ public class RecorderFakeUtils {
 
 
 
-    public static void setFakeRecorderWindowLayoutParams(WindowManager.LayoutParams mainParams, WindowManager.LayoutParams iconParams, WindowManager.LayoutParams canvasParams, WindowManager windowManager, View mainView, View iconView, View canvasView) {
+    public static void setFakeRecorderWindowLayoutParams(WindowManager.LayoutParams mainParams, WindowManager.LayoutParams iconParams, WindowManager.LayoutParams canvasParams, OverlayWindowRegistry windowRegistry, View mainView, View iconView, View canvasView) {
 
         try {               
             mainParams.setTitle(RecorderFakeUtils.getFakeRecordWindowTitle());
@@ -243,20 +243,20 @@ public class RecorderFakeUtils {
 
 
 
-        updateViewLayout(windowManager, mainView, mainParams);
-        updateViewLayout(windowManager, iconView, iconParams);
-        updateViewLayout(windowManager, canvasView, canvasParams);
+        updateViewLayout(windowRegistry, mainView, mainParams);
+        updateViewLayout(windowRegistry, iconView, iconParams);
+        updateViewLayout(windowRegistry, canvasView, canvasParams);
         //Toast.makeText(context, "Fake Recorder Window Layout Params set", Toast.LENGTH_SHORT).show();
     }
 
-    public static void setFakeRecorderWindowLayoutParams(WindowManager.LayoutParams mainParams, WindowManager.LayoutParams iconParams, WindowManager.LayoutParams canvasParams, WindowManager.LayoutParams aimParams, WindowManager windowManager, View mainView, View iconView, View canvasView, View aimView) {
-        setFakeRecorderWindowLayoutParams(mainParams, iconParams, canvasParams, windowManager, mainView, iconView, canvasView);
+    public static void setFakeRecorderWindowLayoutParams(WindowManager.LayoutParams mainParams, WindowManager.LayoutParams iconParams, WindowManager.LayoutParams canvasParams, WindowManager.LayoutParams aimParams, OverlayWindowRegistry windowRegistry, View mainView, View iconView, View canvasView, View aimView) {
+        setFakeRecorderWindowLayoutParams(mainParams, iconParams, canvasParams, windowRegistry, mainView, iconView, canvasView);
         applyFakeRecorderParams(aimParams);
-        updateViewLayout(windowManager, aimView, aimParams);
+        updateViewLayout(windowRegistry, aimView, aimParams);
     }
 
 
-    public static void unsetFakeRecorderWindowLayoutParams(WindowManager.LayoutParams mainParams, WindowManager.LayoutParams iconParams, WindowManager.LayoutParams canvasParams, WindowManager windowManager, View mainView, View iconView, View canvasView) {
+    public static void unsetFakeRecorderWindowLayoutParams(WindowManager.LayoutParams mainParams, WindowManager.LayoutParams iconParams, WindowManager.LayoutParams canvasParams, OverlayWindowRegistry windowRegistry, View mainView, View iconView, View canvasView) {
 
         try {
 
@@ -334,16 +334,16 @@ public class RecorderFakeUtils {
             e.printStackTrace();
         }
 
-        updateViewLayout(windowManager, mainView, mainParams);
-        updateViewLayout(windowManager, iconView, iconParams);
-        updateViewLayout(windowManager, canvasView, canvasParams);
+        updateViewLayout(windowRegistry, mainView, mainParams);
+        updateViewLayout(windowRegistry, iconView, iconParams);
+        updateViewLayout(windowRegistry, canvasView, canvasParams);
         //Toast.makeText(context, "Fake Recorder Window Layout Params removed", Toast.LENGTH_SHORT).show();
     }
 
-    public static void unsetFakeRecorderWindowLayoutParams(WindowManager.LayoutParams mainParams, WindowManager.LayoutParams iconParams, WindowManager.LayoutParams canvasParams, WindowManager.LayoutParams aimParams, WindowManager windowManager, View mainView, View iconView, View canvasView, View aimView) {
-        unsetFakeRecorderWindowLayoutParams(mainParams, iconParams, canvasParams, windowManager, mainView, iconView, canvasView);
+    public static void unsetFakeRecorderWindowLayoutParams(WindowManager.LayoutParams mainParams, WindowManager.LayoutParams iconParams, WindowManager.LayoutParams canvasParams, WindowManager.LayoutParams aimParams, OverlayWindowRegistry windowRegistry, View mainView, View iconView, View canvasView, View aimView) {
+        unsetFakeRecorderWindowLayoutParams(mainParams, iconParams, canvasParams, windowRegistry, mainView, iconView, canvasView);
         clearFakeRecorderParams(aimParams);
-        updateViewLayout(windowManager, aimView, aimParams);
+        updateViewLayout(windowRegistry, aimView, aimParams);
     }
 
     private static void applyFakeRecorderParams(WindowManager.LayoutParams params) {
@@ -404,12 +404,9 @@ public class RecorderFakeUtils {
         }
     }
 
-    private static void updateViewLayout(WindowManager windowManager, View view, WindowManager.LayoutParams layoutParams) {
-        if (windowManager != null && view != null && layoutParams != null) {
-            try {
-                windowManager.updateViewLayout(view, layoutParams);
-            } catch (Exception ignored) {
-            }
+    private static void updateViewLayout(OverlayWindowRegistry windowRegistry, View view, WindowManager.LayoutParams layoutParams) {
+        if (windowRegistry != null && view != null && layoutParams != null) {
+            windowRegistry.update(view, layoutParams);
         }
     }
 

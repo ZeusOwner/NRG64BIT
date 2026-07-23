@@ -50,7 +50,12 @@ extern void StartRuntimeHook(const char *);
 #include "UE4.h"
 
 // Auto Feedback (chicken dinner report) — requires stb_image_write.h next to AutoFeedback.h
+#if __has_include("AutoFeedback.h")
+#define BEAR_HAS_AUTO_FEEDBACK 1
 #include "AutoFeedback.h"
+#else
+#define BEAR_HAS_AUTO_FEEDBACK 0
+#endif
 #define PI 3.14159265358979323846f
 #define SLEEP_TIME 1000LL / 60LL
 #define W2S(w, s) UGameplayStatics::ProjectWorldToScreen(localController, w, true, s)
@@ -1467,20 +1472,22 @@ esp.DrawCircle(Color(255,0,0), FVector2D{RadarCenterX, RadarCenterY}, 3.0f, 10);
             if (localPlayer) {
     
                      
-                // === AUTO FEEDBACK (chicken dinner report) ===
-                // Scan the same actor list for GameState and trigger once when win condition is met.
-                if (Config["AUTO_FEEDBACK"]) {
-                    for (int i = 0; i < Actors.Num(); i++) {
-                        if (isObjectInvalid(Actors[i]))
-                            continue;
-                        if (Actors[i]->IsA(ASTExtraGameStateBase::StaticClass())) {
-                            auto GameState = (ASTExtraGameStateBase *) Actors[i];
-                            DrawFeedBack(esp, localPlayer, localController, GameState);
-                            break;   // only need one GameState
+                #if BEAR_HAS_AUTO_FEEDBACK
+                    // === AUTO FEEDBACK (chicken dinner report) ===
+                    // Scan the same actor list for GameState and trigger once when win condition is met.
+                    if (Config["AUTO_FEEDBACK"]) {
+                        for (int i = 0; i < Actors.Num(); i++) {
+                            if (isObjectInvalid(Actors[i]))
+                                continue;
+                            if (Actors[i]->IsA(ASTExtraGameStateBase::StaticClass())) {
+                                auto GameState = (ASTExtraGameStateBase *) Actors[i];
+                                DrawFeedBack(esp, localPlayer, localController, GameState);
+                                break;   // only need one GameState
+                            }
                         }
                     }
-                }
-                // =============================================
+                    // =============================================
+                #endif
             
                             for (int i = 0; i < Actors.Num(); i++) {
                     if (isObjectPlayer(Actors[i])) {
