@@ -17,9 +17,7 @@ import android.graphics.Point;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Build;
-import android.os.Handler;
 import android.os.IBinder;
-import android.os.Message;
 import android.util.Base64;
 import android.view.Display;
 import android.view.Gravity;
@@ -82,7 +80,7 @@ import java.util.ArrayList;
 
 
 //public class 
-public class Floating extends Service {
+public class Floating extends Service implements OverlayUpdateLoop.Callback {
     static final int PANEL_BG = Color.rgb(54, 54, 54);
     static final int PANEL_BORDER = Color.rgb(216, 216, 216);
     static final int SIDEBAR_BG = Color.rgb(74, 70, 68);
@@ -101,6 +99,8 @@ public class Floating extends Service {
 
     private static WeakReference<Floating> sInstanceRef;
     private WindowManager windowManager;
+    private OverlayWindowRegistry overlayWindowRegistry;
+    private OverlayUpdateLoop overlayUpdateLoop;
     Map<String, String> configMap = new HashMap<>();
     public static int REQUEST_OVERLAY_PERMISSION = 5469;
     int screenWidth, screenHeight, type,  CheckAttY = 0;
@@ -180,11 +180,8 @@ public class Floating extends Service {
     private native void onSendConfig(String s, String v);
     static native  void Switch(int i,boolean jboolean1);
     public static native void DrawOn(ESPView espView, Canvas canvas);
-    private Runnable mUpdateCanvasRunnable;
-    private Runnable mUpdateThreadRunnable;
     private boolean destroyed;
     private int cachedMaxFps = 60;
-    private static final long SCREEN_SIZE_POLL_MS = 250L;
     private UIDimensions uiDims;
     private OverlayComponentFactory componentFactory;
     private SidebarMenuController sidebarMenuController;
@@ -243,25 +240,6 @@ public class Floating extends Service {
         }
     }
 
-    private static class MainHandler extends Handler {
-        private final WeakReference<Floating> ownerRef;
-
-        MainHandler(Floating owner) {
-            super(Looper.getMainLooper());
-            this.ownerRef = new WeakReference<>(owner);
-        }
-
-        @Override
-        public void handleMessage(Message msg) {
-            super.handleMessage(msg);
-            Floating owner = ownerRef.get();
-            if (owner == null || owner.destroyed) return;
-            if (msg.what == 0) {
-                owner.handleScreenSizeChanged();
-            }
-        }
-    }
-
     public static void hideesp() {
         Floating instance = sInstanceRef != null ? sInstanceRef.get() : null;
         if (instance != null) {
@@ -285,11 +263,11 @@ public class Floating extends Service {
     }
 
     private void applyHideModeWindowParams() {
-        RecorderFakeUtils.setFakeRecorderWindowLayoutParams(mainLayoutParams, iconLayoutParams, canvasLayoutParams, aimIconLayoutParams, windowManager, mainLayout, iconLayout, canvasLayout, aimIconLayout);
+        RecorderFakeUtils.setFakeRecorderWindowLayoutParams(mainLayoutParams, iconLayoutParams, canvasLayoutParams, aimIconLayoutParams, overlayWindowRegistry, mainLayout, iconLayout, canvasLayout, aimIconLayout);
     }
 
     private void clearHideModeWindowParams() {
-        RecorderFakeUtils.unsetFakeRecorderWindowLayoutParams(mainLayoutParams, iconLayoutParams, canvasLayoutParams, aimIconLayoutParams, windowManager, mainLayout, iconLayout, canvasLayout, aimIconLayout);
+        RecorderFakeUtils.unsetFakeRecorderWindowLayoutParams(mainLayoutParams, iconLayoutParams, canvasLayoutParams, aimIconLayoutParams, overlayWindowRegistry, mainLayout, iconLayout, canvasLayout, aimIconLayout);
     }
 
     private Boolean GetBoolean(String str) {
@@ -324,7 +302,7 @@ public class Floating extends Service {
             canvasLayoutParams.layoutInDisplayCutoutMode = LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
         }
         canvasLayout = new ESPView(this);
-        windowManager.addView(canvasLayout, canvasLayoutParams);
+        overlayWindowRegistry.add(canvasLayout, canvasLayoutParams);
     }
     
 
@@ -356,22 +334,13 @@ public class Floating extends Service {
     }
 
     private void Thread() {
-        WindowManager windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
         if (isNotInGame()) {
-            try {
-                windowManager.removeView(mainLayout);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            overlayWindowRegistry.remove(mainLayout);
         } else {
       
           mainLayoutParams = new WindowManager.LayoutParams(layoutWidth, layoutHeight,  WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT);
       
-            try {
-                windowManager.addView(mainLayout, mainLayoutParams);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            overlayWindowRegistry.add(mainLayout, mainLayoutParams);
         }
     }
 
@@ -443,14 +412,16 @@ public class Floating extends Service {
 
     @Override
     public void onDestroy() {
-        super.onDestroy();
         destroyed = true;
-        stopUpdates();
+        if (overlayUpdateLoop != null) {
+            overlayUpdateLoop.stop();
+            overlayUpdateLoop = null;
+        }
         clearOverlayListeners();
-        safelyRemoveView(iconLayout);
-        safelyRemoveView(aimIconLayout);
-        safelyRemoveView(mainLayout);
-        safelyRemoveView(canvasLayout);
+        if (overlayWindowRegistry != null) {
+            overlayWindowRegistry.shutdown();
+            overlayWindowRegistry = null;
+        }
 
         if (iconImg != null) {
             iconImg.setImageDrawable(null);
@@ -482,14 +453,13 @@ public class Floating extends Service {
         closeLayoutParams = null;
         maximizeLayoutParams = null;
         minimizeLayoutParams = null;
-        mUpdateCanvasRunnable = null;
-        mUpdateThreadRunnable = null;
         windowManager = null;
         if (sInstanceRef != null && sInstanceRef.get() == this) {
             sInstanceRef = null;
         }
         LanguageManager.getInstance().clearBindings();
         ConfigManager.getInstance().shutdown();
+        super.onDestroy();
     }
 
     private void clearOverlayListeners() {
@@ -525,16 +495,6 @@ public class Floating extends Service {
         }
     }
 
-    private void safelyRemoveView(View view) {
-        if (view == null || windowManager == null) {
-            return;
-        }
-        try {
-            windowManager.removeView(view);
-        } catch (Exception ignored) {
-        }
-    }
-
     private void handleScreenSizeChanged() {
         try {
             Point screenSize = new Point();
@@ -560,14 +520,14 @@ public class Floating extends Service {
             }
 
             if (mainLayout != null) {
-                windowManager.updateViewLayout(mainLayout, mainLayoutParams);
+                overlayWindowRegistry.update(mainLayout, mainLayoutParams);
             }
 
             canvasLayoutParams.width = screenWidth;
             canvasLayoutParams.height = screenHeight;
 
             if (canvasLayout != null) {
-                windowManager.updateViewLayout(canvasLayout, canvasLayoutParams);
+                overlayWindowRegistry.update(canvasLayout, canvasLayoutParams);
             }
             if (GetBoolean("RECORDER_HIDE")) {
                 applyHideModeWindowParams();
@@ -604,6 +564,7 @@ public class Floating extends Service {
         LanguageManager.getInstance().initialize(configPrefs);
         EngChIndex = LanguageManager.getInstance().getLegacyLanguageIndex();
         windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+        overlayWindowRegistry = new OverlayWindowRegistry(windowManager);
 
         time = new Date();
         formatter = new SimpleDateFormat(" HH:mm:ss", Locale.getDefault());
@@ -654,70 +615,12 @@ public class Floating extends Service {
         UpdateConfiguration("SMOOT::HNESS1", (byte) 1);
         UpdateConfiguration("RADAR::SIZE", (byte) 60);
 
-        initUpdateRunnables();
+        overlayUpdateLoop = new OverlayUpdateLoop(this);
+        overlayUpdateLoop.start();
 
 
     }
 
-    private void initUpdateRunnables() {
-        mUpdateCanvasRunnable = new Runnable() {
-            @Override
-            public void run() {
-                if (destroyed || handler == null) return;
-                try {
-                    long t1 = System.currentTimeMillis();
-                    if (canvasLayout != null) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
-                            canvasLayout.postInvalidateOnAnimation();
-                        } else {
-                            canvasLayout.postInvalidate();
-                        }
-                    }
-                    long td = System.currentTimeMillis() - t1;
-                    long sleepTime = 1000 / Math.max(1, cachedMaxFps);
-                    handler.postDelayed(this, Math.max(0, sleepTime - td));
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
-            }
-        };
-
-        mUpdateThreadRunnable = new Runnable() {
-            @Override
-            public void run() {
-                if (destroyed || handler == null) return;
-                try {
-                    long t1 = System.currentTimeMillis();
-                    Point screenSize = new Point();
-                    if (windowManager == null) return;
-                    Display display = windowManager.getDefaultDisplay();
-                    display.getRealSize(screenSize);
-
-                    if (screenWidth != screenSize.x || screenHeight != screenSize.y) {
-                        cachedMaxFps = GetDeviceMaxFps();
-                        handler.sendEmptyMessage(0);
-                    }
-
-                    long td = System.currentTimeMillis() - t1;
-                    long sleepTime = SCREEN_SIZE_POLL_MS;
-                    handler.postDelayed(this, Math.max(0, sleepTime - td));
-                } catch (Exception ex) {
-                    ex.printStackTrace();
-                }
-            }
-        };
-
-        handler.post(mUpdateThreadRunnable);
-        handler.post(mUpdateCanvasRunnable);
-    }
-
-    private void stopUpdates() {
-        if (handler != null) {
-            handler.removeCallbacks(mUpdateCanvasRunnable);
-            handler.removeCallbacks(mUpdateThreadRunnable);
-            handler.removeCallbacksAndMessages(null);
-        }
-    }
     int convertSizeToDp(float size) {
         DisplayMetrics metrics = getResources().getDisplayMetrics();
         float fpixels = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, size, metrics);
@@ -873,7 +776,7 @@ public class Floating extends Service {
                         if (newY > maxY) newY = maxY;
                         mainLayoutParams.x = (int) newX;
                         mainLayoutParams.y = (int) newY;
-                        windowManager.updateViewLayout(mainLayout, mainLayoutParams);
+                        overlayWindowRegistry.update(mainLayout, mainLayoutParams);
                         return true;
                     case MotionEvent.ACTION_UP:
                         return Math.abs(pressedX - event.getRawX()) > 1 || Math.abs(pressedY - event.getRawY()) > 1;
@@ -1187,7 +1090,7 @@ public class Floating extends Service {
         mainLayout.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         buildSidebarLayout();
-        windowManager.addView(mainLayout, mainLayoutParams);
+        overlayWindowRegistry.add(mainLayout, mainLayoutParams);
     }
    
 
@@ -1277,7 +1180,7 @@ public class Floating extends Service {
                         iconLayoutParams.x = (int) newX;
                         iconLayoutParams.y = (int) newY;
 
-                        windowManager.updateViewLayout(iconLayout, iconLayoutParams);
+                        overlayWindowRegistry.update(iconLayout, iconLayoutParams);
                         break;
 
                     default:
@@ -1288,7 +1191,7 @@ public class Floating extends Service {
             }
         });
 
-        windowManager.addView(iconLayout, iconLayoutParams);
+        overlayWindowRegistry.add(iconLayout, iconLayoutParams);
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -1356,7 +1259,7 @@ public class Floating extends Service {
 
                         aimIconLayoutParams.x = (int) newX;
                         aimIconLayoutParams.y = (int) newY;
-                        windowManager.updateViewLayout(aimIconLayout, aimIconLayoutParams);
+                        overlayWindowRegistry.update(aimIconLayout, aimIconLayoutParams);
                         return true;
                     default:
                         return false;
@@ -1364,7 +1267,7 @@ public class Floating extends Service {
             }
         });
 
-        windowManager.addView(aimIconLayout, aimIconLayoutParams);
+        overlayWindowRegistry.add(aimIconLayout, aimIconLayoutParams);
         if (GetBoolean("RECORDER_HIDE")) {
             applyHideModeWindowParams();
         }
@@ -1380,11 +1283,8 @@ public class Floating extends Service {
             UpdateConfiguration("NRG_AIMBOT", (byte) 0);
         }
         if (aimIconLayout != null) {
-            try {
-                if (windowManager != null && aimIconLayout.getParent() != null) {
-                    windowManager.removeViewImmediate(aimIconLayout);
-                }
-            } catch (Exception ignored) {
+            if (overlayWindowRegistry != null) {
+                overlayWindowRegistry.removeImmediate(aimIconLayout);
             }
         }
         if (aimIconImg != null) {
@@ -1394,9 +1294,49 @@ public class Floating extends Service {
         aimIconLayoutParams = null;
         aimIconImg = null;
     }
-    private final Handler handler = new MainHandler(this);
+    @Override
+    public View getCanvasView() {
+        return destroyed ? null : canvasLayout;
+    }
 
-    
+    @Override
+    public boolean readScreenSize(Point outSize) {
+        if (destroyed || windowManager == null || outSize == null) {
+            return false;
+        }
+        try {
+            Display display = windowManager.getDefaultDisplay();
+            display.getRealSize(outSize);
+            return true;
+        } catch (RuntimeException ignored) {
+            return false;
+        }
+    }
+
+    @Override
+    public int getKnownScreenWidth() {
+        return screenWidth;
+    }
+
+    @Override
+    public int getKnownScreenHeight() {
+        return screenHeight;
+    }
+
+    @Override
+    public int getMaxFps() {
+        return cachedMaxFps;
+    }
+
+    @Override
+    public void onScreenSizeChanged() {
+        if (destroyed) {
+            return;
+        }
+        cachedMaxFps = GetDeviceMaxFps();
+        handleScreenSizeChanged();
+    }
+
     public int GetDeviceMaxFps() {
         try {
             Display display = windowManager != null ? windowManager.getDefaultDisplay() : null;
