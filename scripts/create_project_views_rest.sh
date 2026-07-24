@@ -55,8 +55,8 @@ log "Using project #${PROJECT_NUMBER}: ${PROJECT_URL}"
 api "users/${OWNER}/projectsV2/${PROJECT_NUMBER}" >/dev/null || \
   fail "The project exists but the authenticated session cannot read it. Run: gh auth refresh -h github.com -s project,read:project"
 
-# The REST field-list endpoint is still rolling out across token/account combinations.
-# View creation does not require visible_fields, so a 404 here is non-fatal.
+# View creation does not require visible_fields. If field listing is unavailable,
+# the script falls back to GitHub's default visible columns.
 FIELDS_JSON='[]'
 if REST_FIELDS="$(api --paginate "users/${OWNER}/projectsV2/${PROJECT_NUMBER}/fields?per_page=100" 2>/dev/null)"; then
   FIELDS_JSON="${REST_FIELDS}"
@@ -95,30 +95,36 @@ for name in "${VISIBLE_FIELD_NAMES[@]}"; do
   fi
 done
 
-# User-owned Project view endpoints use a numeric user ID in the documented path.
-# Some deployments also accept the login, so try both and retain whichever works.
-VIEW_OWNER_KEY=''
-VIEWS_JSON=''
-for candidate in "${USER_ID}" "${OWNER}"; do
-  if candidate_json="$(api --paginate "users/${candidate}/projectsV2/${PROJECT_NUMBER}/views?per_page=100" 2>/dev/null)"; then
-    VIEW_OWNER_KEY="${candidate}"
-    VIEWS_JSON="${candidate_json}"
-    break
-  fi
-done
+# The REST Project Views API currently documents creation only. A GET request to
+# the POST collection path returns 404. Read existing views through GraphQL so
+# reruns can remain idempotent, then use REST only for POST creation.
+VIEWS_JSON="$(gh api graphql \
+  -f login="${OWNER}" \
+  -F number="${PROJECT_NUMBER}" \
+  -f query='
+    query($login: String!, $number: Int!) {
+      user(login: $login) {
+        projectV2(number: $number) {
+          views(first: 100) {
+            nodes {
+              name
+              number
+              layout
+            }
+          }
+        }
+      }
+    }
+  ' \
+  --jq '.data.user.projectV2.views.nodes')" || \
+  fail "Could not read Project views through GraphQL. Run: gh auth refresh -h github.com -s project,read:project"
 
-if [[ -z "${VIEW_OWNER_KEY}" ]]; then
-  fail "The Project Views endpoint returned 404 for both numeric user ID and login. Refresh OAuth scopes with: gh auth refresh -h github.com -s project,read:project"
-fi
-
-log "Project Views endpoint resolved with user key: ${VIEW_OWNER_KEY}"
+[[ -n "${VIEWS_JSON}" && "${VIEWS_JSON}" != "null" ]] || \
+  fail "GraphQL returned no view collection for project #${PROJECT_NUMBER}."
 
 view_exists() {
   local name="$1"
-  jq -e --arg name "${name}" '
-    if type == "array" then . else (.value // .views // []) end
-    | any(.name == $name)
-  ' <<<"${VIEWS_JSON}" >/dev/null
+  jq -e --arg name "${name}" 'any(.name == $name)' <<<"${VIEWS_JSON}" >/dev/null
 }
 
 create_view() {
@@ -148,9 +154,13 @@ create_view() {
 
   api \
     --method POST \
-    "users/${VIEW_OWNER_KEY}/projectsV2/${PROJECT_NUMBER}/views" \
+    "users/${USER_ID}/projectsV2/${PROJECT_NUMBER}/views" \
     --input - <<<"${payload}" \
     --jq '(.value // .) | "created: \(.name) -> \(.html_url)"'
+
+  # Keep the in-memory list current so duplicate names in the same invocation
+  # are also skipped safely.
+  VIEWS_JSON="$(jq --arg name "${name}" '. + [{name: $name}]' <<<"${VIEWS_JSON}")"
 }
 
 REPO_FILTER="repo:${OWNER}/${REPO}"
