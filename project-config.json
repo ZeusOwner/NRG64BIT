@@ -1,0 +1,43 @@
+{
+  "projectName": "NRG64BIT Development Board",
+  "description": "Operational board seeded per Issue #11. Fields, views, and initial snapshot for repository ZeusOwner/NRG64BIT.",
+  "fields": [
+    { "name": "Status", "type": "single_select", "options": ["Inbox","Ready","In Progress","Agent Working","Needs AndroidIDE Test","Needs Device Test","Review","Blocked","Done"] },
+    { "name": "Priority", "type": "single_select", "options": ["P0 — Build/runtime blocker","P1 — Major broken behavior","P2 — Important improvement","P3 — Cleanup/later"] },
+    { "name": "Area", "type": "single_select", "options": ["Java UI","Config/Persistence","JNI Bridge","C++ Native","Overlay Lifecycle","ESP Items","SDK/Offsets","Build/Gradle","Testing","Documentation"] },
+    { "name": "Agent suitability", "type": "single_select", "options": ["Agent Ready","Needs Investigation","Human/Device Required","Do Not Start"] },
+    { "name": "Validation", "type": "single_select", "options": ["Not Started","Static Check Passed","AndroidIDE Build Passed","Device Test Passed","Failed"] },
+    { "name": "Dependency", "type": "text" },
+    { "name": "Linked PR", "type": "text" }
+  ],
+  "views": [
+    { "name": "All Work", "type": "table", "columns": ["Status","Priority","Area","Agent suitability","Validation","Linked PR","Dependency"] },
+    { "name": "Active Board", "type": "board", "group_by": "Status" },
+    { "name": "Agent Queue", "type": "table", "filter": { "Agent suitability": "Agent Ready" } },
+    { "name": "AndroidIDE Tests", "type": "table", "filter": { "Status": "Needs AndroidIDE Test" } },
+    { "name": "Device Validation", "type": "table", "filter": { "Status": "Needs Device Test" } },
+    { "name": "Blocked", "type": "table", "filter": { "Status": "Blocked" } },
+    { "name": "Completed", "type": "table", "filter": { "Status": "Done" }, "include_closed": true }
+  ],
+  "initial_snapshot": {
+    "Done": [
+      { "type": "issue", "number": 2, "title": "Floating menu drag bug", "metadata": { "Status": "Done", "Priority": "P1 — Major broken behavior", "Area": ["Java UI","Overlay Lifecycle"], "Validation": "Device Test Passed", "Linked PR": "PR #3" } },
+      { "type": "pr", "number": 3, "title": "Fix floating menu drag across full screen", "metadata": { "Status": "Done", "Priority": "P1 — Major broken behavior", "Area": ["Java UI","Overlay Lifecycle"], "Validation": "Device Test Passed" } }
+    ],
+    "In Progress": [
+      { "type": "issue", "number": 6, "title": "Overlay lifecycle hardening", "metadata": { "Status": "In Progress", "Priority": "P1 — Major broken behavior", "Area": ["Overlay Lifecycle","Config/Persistence","Build/Gradle"], "Agent suitability": "Human/Device Required", "Validation": "AndroidIDE Build Passed", "Dependency": "Depends on #8 (config/native replay)" } },
+      { "type": "pr", "number": 7, "title": "refactor(android): harden overlay lifecycle", "metadata": { "Status": "In Progress", "Priority": "P1 — Major broken behavior", "Agent suitability": "Human/Device Required", "Validation": "AndroidIDE Build Passed" } }
+    ],
+    "Ready P0": [
+      { "type": "issue", "number": 8, "title": "Fix Java/native configuration restore divergence after restart", "metadata": { "Status": "Ready", "Priority": "P0 — Build/runtime blocker", "Area": ["Config/Persistence","JNI Bridge","C++ Native"], "Agent suitability": "Agent Ready", "Validation": "Not Started", "Dependency": "stack after PR #7" } }
+    ],
+    "Ready P1": [
+      { "type": "issue", "number": 9, "title": "Audit JNI configuration bridge signatures, consumers, and failure handling", "metadata": { "Status": "Ready", "Priority": "P1 — Major broken behavior", "Agent suitability": "Agent Ready", "Validation": "Not Started", "Dependency": "Relates to #8" } },
+      { "type": "issue", "number": 10, "title": "Audit menu controls against native consumers and remove or disable dead controls", "metadata": { "Status": "Ready", "Priority": "P1 — Major broken behavior", "Agent suitability": "Agent Ready", "Validation": "Not Started", "Dependency": "Use findings from #8/#9" } }
+    ],
+    "Blocked": [
+      { "type": "issue", "number": 4, "title": "Grouped item selection with deterministic native state", "metadata": { "Status": "Blocked", "Priority": "P1 — Major broken behavior", "Area": ["ESP Items","JNI Bridge","C++ Native"], "Agent suitability": "Agent Ready", "Validation": "Not Started", "Dependency": "Item state must remain outside generic config replay; coordinate with #8" } },
+      { "type": "pr", "number": 5, "title": "Add grouped item selection with explicit native state", "metadata": { "Status": "Blocked", "Priority": "P1 — Major broken behavior", "Dependency": "Blocked until item-state contract work begins" } }
+    ]
+  }
+}
