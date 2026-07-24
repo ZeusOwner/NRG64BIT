@@ -22,6 +22,7 @@ require_command() {
 require_command gh
 require_command jq
 
+# Do not print or persist the authenticated token.
 gh auth status -h github.com >/dev/null 2>&1 || \
   fail 'GitHub CLI is not authenticated. Run: gh auth login --scopes project'
 
@@ -32,9 +33,12 @@ api() {
     "$@"
 }
 
-USER_ID="$(api "users/${OWNER}" --jq '.id')"
-[[ -n "${USER_ID}" && "${USER_ID}" != "null" ]] || \
-  fail "Could not resolve numeric GitHub user ID for ${OWNER}"
+USER_JSON="$(api "users/${OWNER}")"
+USER_ID="$(jq -r '.id // empty' <<<"${USER_JSON}")"
+USER_NODE_ID="$(jq -r '.node_id // empty' <<<"${USER_JSON}")"
+
+[[ -n "${USER_ID}" ]] || fail "Could not resolve numeric GitHub user ID for ${OWNER}"
+[[ -n "${USER_NODE_ID}" ]] || fail "Could not resolve GitHub user node ID for ${OWNER}"
 
 PROJECTS_JSON="$(api --paginate "users/${OWNER}/projectsV2?per_page=100")"
 
@@ -51,12 +55,13 @@ PROJECT_NUMBER="$(jq -r --arg title "${PROJECT_TITLE}" '
 PROJECT_URL="https://github.com/users/${OWNER}/projects/${PROJECT_NUMBER}"
 log "Using project #${PROJECT_NUMBER}: ${PROJECT_URL}"
 
-# Verify that the authenticated session can read this exact project.
-api "users/${OWNER}/projectsV2/${PROJECT_NUMBER}" >/dev/null || \
+PROJECT_JSON="$(api "users/${OWNER}/projectsV2/${PROJECT_NUMBER}")" || \
   fail "The project exists but the authenticated session cannot read it. Run: gh auth refresh -h github.com -s project,read:project"
 
-# View creation does not require visible_fields. If field listing is unavailable,
-# the script falls back to GitHub's default visible columns.
+PROJECT_NODE_ID="$(jq -r '.node_id // empty' <<<"${PROJECT_JSON}")"
+[[ -n "${PROJECT_NODE_ID}" ]] || fail 'The REST project response did not include node_id.'
+
+# Fields use the username-based user-owned Project endpoint.
 FIELDS_JSON='[]'
 if REST_FIELDS="$(api --paginate "users/${OWNER}/projectsV2/${PROJECT_NUMBER}/fields?per_page=100" 2>/dev/null)"; then
   FIELDS_JSON="${REST_FIELDS}"
@@ -95,36 +100,81 @@ for name in "${VISIBLE_FIELD_NAMES[@]}"; do
   fi
 done
 
-# The REST Project Views API currently documents creation only. A GET request to
-# the POST collection path returns 404. Read existing views through GraphQL so
-# reruns can remain idempotent, then use REST only for POST creation.
+# There is currently no REST list-views endpoint. Read existing view names through GraphQL
+# so rerunning the script remains idempotent.
 VIEWS_JSON="$(gh api graphql \
-  -f login="${OWNER}" \
-  -F number="${PROJECT_NUMBER}" \
+  -F projectId="${PROJECT_NODE_ID}" \
   -f query='
-    query($login: String!, $number: Int!) {
-      user(login: $login) {
-        projectV2(number: $number) {
+    query($projectId: ID!) {
+      node(id: $projectId) {
+        ... on ProjectV2 {
           views(first: 100) {
             nodes {
               name
               number
-              layout
             }
           }
         }
       }
     }
   ' \
-  --jq '.data.user.projectV2.views.nodes')" || \
-  fail "Could not read Project views through GraphQL. Run: gh auth refresh -h github.com -s project,read:project"
-
-[[ -n "${VIEWS_JSON}" && "${VIEWS_JSON}" != "null" ]] || \
-  fail "GraphQL returned no view collection for project #${PROJECT_NUMBER}."
+  --jq '.data.node.views.nodes')"
 
 view_exists() {
   local name="$1"
   jq -e --arg name "${name}" 'any(.name == $name)' <<<"${VIEWS_JSON}" >/dev/null
+}
+
+# The REST documentation calls this path parameter `user_id` rather than `username`.
+# Try the global REST/GraphQL node ID first, then numeric database ID and login as
+# compatibility fallbacks. Once one form succeeds, reuse it for later views.
+VIEW_OWNER_KEY=''
+
+post_view() {
+  local payload="$1"
+  local response=''
+  local error_file
+  error_file="$(mktemp)"
+  trap 'rm -f "${error_file}"' RETURN
+
+  local candidates=()
+  if [[ -n "${VIEW_OWNER_KEY}" ]]; then
+    candidates=("${VIEW_OWNER_KEY}")
+  else
+    candidates=("${USER_NODE_ID}" "${USER_ID}" "${OWNER}")
+  fi
+
+  local candidate encoded status
+  for candidate in "${candidates[@]}"; do
+    encoded="$(jq -rn --arg value "${candidate}" '$value | @uri')"
+
+    set +e
+    response="$(api \
+      --method POST \
+      "users/${encoded}/projectsV2/${PROJECT_NUMBER}/views" \
+      --input - <<<"${payload}" 2>"${error_file}")"
+    status=$?
+    set -e
+
+    if [[ ${status} -eq 0 ]]; then
+      VIEW_OWNER_KEY="${candidate}"
+      printf '%s' "${response}"
+      return 0
+    fi
+
+    if grep -q 'HTTP 404' "${error_file}" || \
+       jq -e '(.message // "") == "Not Found"' <<<"${response}" >/dev/null 2>&1; then
+      : >"${error_file}"
+      continue
+    fi
+
+    [[ -n "${response}" ]] && printf '%s\n' "${response}" >&2
+    cat "${error_file}" >&2
+    return "${status}"
+  done
+
+  [[ -n "${response}" ]] && printf '%s\n' "${response}" >&2
+  fail "View creation returned 404 for user node ID, numeric ID, and login. Confirm the gh token is an OAuth/classic token with project scope; fine-grained PATs and GitHub App tokens are not supported by this user-owned Project Views endpoint."
 }
 
 create_view() {
@@ -137,7 +187,7 @@ create_view() {
     return 0
   fi
 
-  local payload
+  local payload response
   if [[ "${layout}" == "roadmap" || ${#VISIBLE_FIELDS[@]} -eq 0 ]]; then
     payload="$(jq -n \
       --arg name "${name}" \
@@ -152,14 +202,10 @@ create_view() {
       '{name: $name, layout: $layout, filter: $filter, visible_fields: map(tonumber)}')"
   fi
 
-  api \
-    --method POST \
-    "users/${USER_ID}/projectsV2/${PROJECT_NUMBER}/views" \
-    --input - <<<"${payload}" \
-    --jq '(.value // .) | "created: \(.name) -> \(.html_url)"'
+  response="$(post_view "${payload}")"
+  jq -r '(.value // .) | "created: \(.name) -> \(.html_url)"' <<<"${response}"
 
-  # Keep the in-memory list current so duplicate names in the same invocation
-  # are also skipped safely.
+  # Keep the local idempotency snapshot current during this run.
   VIEWS_JSON="$(jq --arg name "${name}" '. + [{name: $name}]' <<<"${VIEWS_JSON}")"
 }
 
@@ -174,5 +220,5 @@ create_view "Blocked" "table" "${REPO_FILTER} status:Blocked"
 create_view "Completed" "table" "${REPO_FILTER} status:Done"
 
 log "Project views are configured: ${PROJECT_URL}"
-log 'The REST create-view endpoint does not expose board group_by/sort_by configuration.'
-log 'Open Active Board in GitHub and set Group by -> Status once.'
+log "REST view creation resolved user_id as: ${VIEW_OWNER_KEY}"
+log 'Open Active Board in GitHub and set Group by -> Status once if it is not already grouped.'
